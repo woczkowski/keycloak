@@ -635,6 +635,7 @@ public class SamlService extends AuthorizationEndpointBase {
           ? (int) (o2.getProviderPriority() - o1.getProviderPriority())
           : (o1.getStatus() == KeyStatus.PASSIVE ? 1 : -1));
         keys.addAll(session.keys().getKeys(realm, KeyUse.SIG, Algorithm.RS256));
+        keys.addAll(session.keys().getKeys(realm, KeyUse.SIG, Algorithm.ES256));
         for (KeyWrapper key : keys) {
             addKeyInfo(keysString, key, KeyTypes.SIGNING.value());
         }

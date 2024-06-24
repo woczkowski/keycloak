@@ -50,9 +50,15 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.cert.X509Certificate;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeSet;
+import org.keycloak.crypto.Algorithm;
+import org.keycloak.crypto.KeyUse;
+import org.keycloak.crypto.KeyWrapper;
 
 /**
  * @author Pedro Igor
@@ -103,11 +109,25 @@ public class SAMLIdentityProvider extends AbstractIdentityProvider<SAMLIdentityP
             boolean postBinding = getConfig().isPostBindingAuthnRequest();
 
             if (getConfig().isWantAuthnRequestsSigned()) {
-                KeyManager.ActiveRsaKey keys = session.keys().getActiveRsaKey(realm);
+                SignatureAlgorithm signatureAlgorithm = getSignatureAlgorithm();
+                KeyPair keypair;
+                String kid;
+                X509Certificate certificate;
+                
+                if (signatureAlgorithm.equals(SignatureAlgorithm.ECDSA_SHA256)) {
+                    KeyWrapper keys = session.keys().getActiveKey(realm, KeyUse.SIG, Algorithm.ES256);
+                    keypair = new KeyPair((PublicKey) keys.getPublicKey(), (PrivateKey) keys.getPrivateKey());
+                    kid = keys.getKid();
+                    certificate = keys.getCertificate();
+                } else {
+                    KeyManager.ActiveRsaKey keys = session.keys().getActiveRsaKey(realm);
 
-                KeyPair keypair = new KeyPair(keys.getPublicKey(), keys.getPrivateKey());
+                    keypair = new KeyPair(keys.getPublicKey(), keys.getPrivateKey());
+                    kid = keys.getKid();
+                    certificate = keys.getCertificate();
+                }
 
-                String keyName = getConfig().getXmlSigKeyInfoKeyNameTransformer().getKeyName(keys.getKid(), keys.getCertificate());
+                String keyName = getConfig().getXmlSigKeyInfoKeyNameTransformer().getKeyName(kid, certificate);
                 binding.signWith(keyName, keypair);
                 binding.signatureAlgorithm(getSignatureAlgorithm());
                 binding.signDocument();
